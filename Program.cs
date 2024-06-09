@@ -19,12 +19,14 @@ namespace ModyfieCNCFiles
 
                 var pointsLint = getPiontsCoordination(linesInFile);
 
+                
                 File.WriteAllLines(cncFile, linesInFile);
+
 
             }
         }
 
-        static private Dictionary<char, List<Point>> getPiontsCoordination(string[] linesInFile)
+        static private Dictionary<char, Point> getPiontsCoordination(string[] linesInFile)
         {
             List<string> linesWithContureMarkCoordinate = new List<string>();
 
@@ -40,25 +42,25 @@ namespace ModyfieCNCFiles
             int letter = 65;
             string pattern = @"\d+\.\d+";
 
-            Dictionary<char, List<Point>> pointList = new Dictionary<char, List<Point>>();
+            Dictionary<char, Point> pointList = new Dictionary<char, Point>();
             foreach (var line in linesWithContureMarkCoordinate)
             {
                 MatchCollection match = Regex.Matches(line, pattern);
 
                 if (!pointList.ContainsKey((char)letter))
-                    pointList.Add((char)letter, new List<Point>
-                        { new Point
+                    pointList.Add((char)letter, 
+                        new Point
                         {
                             Xposition = int.Parse(match[0].Value.Substring(0, match[0].Length - 3)),
                             Yposition = int.Parse(match[1].Value.Substring(0, match[1].Length - 3))
-                        } });
+                        });
                 letter++;
             }
             foundCrossPointTwoLine(pointList);
             return pointList;
         }
 
-        static private void foundCrossPointTwoLine(Dictionary<char, List<Point>> pointList)
+        static private void foundCrossPointTwoLine(Dictionary<char, Point> pointList)
         {
             for (int i = 0; i < pointList.Count; i++) 
             {
@@ -67,6 +69,11 @@ namespace ModyfieCNCFiles
             
             }
 
+
+        }
+
+        static private void getHardStumpPointPossition(List<dynamic> points)
+        {
 
         }
     }
