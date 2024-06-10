@@ -6,7 +6,9 @@ namespace ModyfieCNCFiles
     {
         static void Main(string[] args)
         {
-            var cncFiles = Directory.GetFiles("c:\\Users\\matau\\OneDrive\\Pulpit\\projekt\\CNC\\");
+            var cncFiles = Directory.GetFiles("d:\\AUTOZAPIS\\CNC\\");
+            int completed = 0;
+            int notCompleted = 0;
             foreach (var cncFile in cncFiles)
             {
                 //get all lines from cnc file
@@ -16,20 +18,46 @@ namespace ModyfieCNCFiles
                 var hardStumpMarksLinePositions = linesInFile.Select((line, index) => new { line = line, index = index })
                     .Where(x => x.line.Contains("_999")).ToArray();
 
-                List<Point> hardStumpPoints = new List<Point>();
-                foreach(var element in hardStumpMarksLinePositions)
+                if (hardStumpMarksLinePositions.Length == 1)
+                {
+                    try
+                    {
+                        linesInFile[hardStumpMarksLinePositions[0].index] = hardStumpMarksLinePositions[0].line.Replace("_999", "");
+                        completed++;
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"For {Path.GetFileName(cncFile)} can not modyfie hardStump");
+                        notCompleted++;
+                    }
+                }
+                if (hardStumpMarksLinePositions.Length == 2)
+                {
+                    try
+                    {
+                        foreach (var element in hardStumpMarksLinePositions)
+                        {
+                            linesInFile[element.index] = modyfieHardStumpPosition(getCrossPoint(linesInFile), element.line);
+                            completed++;
+
+                        }
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"For {Path.GetFileName(cncFile)} can not modyfie hardStump");
+                        notCompleted++;
+
+                    }
+                }
+                if (hardStumpMarksLinePositions.Length == 3)
                 {
 
-                    modyfieHardStumpPosition(
-                        getHardStumpPointPossition(element.line), element.line);
                 }
 
-
-
-                var crossPoint = getCrossPoint(linesInFile);
-                
                 File.WriteAllLines(cncFile, linesInFile);
             }
+
+            Console.WriteLine($"Modifications completed. Completed CNC {completed}, not compleated CNC {notCompleted}. If any not compleated, please check it manualy.");
         }
 
         static private Point getCrossPoint(string[] linesInFile)
@@ -98,7 +126,7 @@ namespace ModyfieCNCFiles
 
             //count cross point from formula
             int x = (line2[1] * line1[2] - line1[1] * line2[2]) / det ;
-            int y = (line1[0] * line2[2] - line2[0] * line2[0]) / det ;
+            int y = (line1[0] * line2[2] - line2[0] * line1[2]) / det ;
 
             if(x<0) x *= -1 ;
             if(y<0) x *= -1 ;
@@ -108,24 +136,54 @@ namespace ModyfieCNCFiles
 
             
         }
-
-        static private Point getHardStumpPointPossition(string hardStampInfo)
+        static private string modyfieHardStumpPosition(Point crossPoint, string hardStumpInfo)
         {
-            string pattern = @"\d+\.\d+";
-            MatchCollection match = Regex.Matches(hardStampInfo, pattern);
+           var newCrossPoint = getHardStumpRotation(hardStumpInfo,crossPoint);
 
-            return new Point
+            string pattern = @"\b\d+\.\d+s?\b";
+
+            string[] newValues = { ((newCrossPoint.Xposition)+".00s").ToString(), ((newCrossPoint.Yposition)+".00").ToString() };
+
+            // Variable to keep track of replacement index
+            int replacementIndex = 0;
+
+            // MatchEvaluator to replace matched values with new values
+            MatchEvaluator evaluator = match =>
             {
-                Xposition = int.Parse(match[0].Value.Substring(0, match[0].Length - 3)),
-                Yposition = int.Parse(match[1].Value.Substring(0, match[1].Length - 3))
+                if (replacementIndex < newValues.Length)
+                {
+                    return newValues[replacementIndex++];
+                }
+                return match.Value; // return original value if no more replacements
             };
+
+            return Regex.Replace(hardStumpInfo, pattern, evaluator).Replace("_999","");
         }
-
-        static private void modyfieHardStumpPosition(Point hardStumpPosistion, string hardStumpInfo)
+        static private Point getHardStumpRotation(string hardStumpInfo,Point crossPoint)
         {
-            var splitedLine = hardStumpInfo.Split(' ');
+            string patternMimus = @"-\d+\.\d+";
+            MatchCollection match = Regex.Matches(hardStumpInfo, patternMimus);
+            string rotaion = " ";
 
-            
+            if (match.Count == 1)
+                rotaion = match[0].Value;
+            else
+            {
+                string pattern = @"\d+\.\d+";
+                MatchCollection match2 = Regex.Matches(hardStumpInfo, pattern);
+                rotaion = match2[2].Value;
+
+            }
+
+            if (rotaion == "90.00")
+                return new Point { Xposition = crossPoint.Xposition -10, Yposition = crossPoint.Yposition + 10};
+            if (rotaion == "-90.00")
+                return new Point { Xposition = crossPoint.Xposition + 10, Yposition = crossPoint.Yposition - 10};
+            if (rotaion == "180.00")
+                return new Point { Xposition = crossPoint.Xposition - 10, Yposition = crossPoint.Yposition -10 };
+            if (rotaion == "-180.00")
+                return new Point { Xposition = crossPoint.Xposition - 10, Yposition = crossPoint.Yposition - 10};
+            return new Point();
         }
     }
 }
